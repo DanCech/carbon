@@ -208,16 +208,16 @@ def writeTags():
 
 @inlineCallbacks
 def writeTagsForever():
-  while reactor.running:
+  if reactor.running:
     try:
       yield writeTags()
     except Exception:
       log.err()
       # Back-off on error to give the backend time to recover.
-      time.sleep(0.1)
+      reactor.callLater(0.1, writeTagsForever)
     else:
       # Avoid churning CPU when there are no series in the queue
-      time.sleep(0.2)
+      reactor.callLater(0.2, writeTagsForever)
 
 
 def reloadStorageSchemas():
@@ -267,7 +267,7 @@ class WriterService(Service):
         reactor.addSystemEventTrigger('before', 'shutdown', shutdownModifyUpdateSpeed)
         reactor.callInThread(writeForever)
         if settings.ENABLE_TAGS:
-          reactor.callInThread(writeTagsForever)
+          writeTagsForever()
         Service.startService(self)
 
     def stopService(self):
